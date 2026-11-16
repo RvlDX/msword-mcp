@@ -1,14 +1,11 @@
 <div align="center">
 
-[![Install in Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=word&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyJ3b3JkLW1jcC1saXZlIl19)
+# msword-mcp
 
-# word-mcp-live
+**High-performance Word MCP Server — Live editing in Microsoft Word, Academic Publishing Presets, and OpenXML manipulation**
 
-**The only MCP server that edits Word documents while they're open**
+`Live editing` &middot; `Academic & SINTA Presets` &middot; `Metric Units (cm/mm)` &middot; `Native TOC` &middot; `Token Bloat Filtering` &middot; `Tracked changes`
 
-`Live editing` &middot; `Tracked changes` &middot; `Per-action undo` &middot; `120 tools` &middot; `Cross-platform`
-
-[![PyPI](https://img.shields.io/pypi/v/word-mcp-live?color=blue)](https://pypi.org/project/word-mcp-live/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Platform: Windows + macOS/Linux](https://img.shields.io/badge/platform-Windows%20%2B%20macOS%2FLinux-lightgrey)]()
@@ -17,27 +14,29 @@
 
 ---
 
-word-mcp-live gives any AI assistant that supports [MCP](https://modelcontextprotocol.io/) full control of Microsoft Word. Open a document, tell the AI what you need, and watch it happen — formatting, tracked changes, comments, and all. Changes appear live in your open document.
+**msword-mcp** (enhanced fork) gives any AI assistant that supports [MCP](https://modelcontextprotocol.io/) full control of Microsoft Word. Open a document, tell the AI what you need, and watch it happen — formatting, academic thesis layouts, multi-column journal structures, tracked changes, comments, and all. Changes can appear live in your open Word window or be processed offline directly via OpenXML.
 
 <table>
 <tr>
 <td width="50%">
 
-### Without word-mcp-live
+### Without msword-mcp
 
 - AI can discuss your document but can't touch it
 - You copy-paste between AI and Word, losing formatting
+- Manual margin calculation (converting cm to inches manually)
+- Academic page numbering (Roman vs Arabic, different first page per chapter) is painful
 - Track changes? You do those manually after the fact
-- Every edit means save → close → process → reopen
 
 </td>
 <td width="50%">
 
-### With word-mcp-live
+### With msword-mcp
 
-- "Add a tracked change replacing ABC Corp with XYZ Ltd" — done
+- "Apply Indonesian thesis preset with 4-4-3-3 cm margins" — done in 1 call
+- "Setup SINTA 2-column journal template" — done automatically
 - Changes appear live in your open Word document
-- Every AI edit is one Ctrl+Z away
+- Native Word TOC fields with dot leaders and auto-update
 - Real tracked changes with your name, not XML hacks
 
 </td>
@@ -50,25 +49,23 @@ https://github.com/user-attachments/assets/fbb09af4-1e25-4e49-94d0-45b363278810
 
 ## What Sets This Apart
 
+- **Academic, Thesis & SINTA Presets** — 1-call setup for Indonesian Thesis (`4-4-3-3 cm`, Roman prelims, Arabic chapters with different first page), SINTA 2-column articles, and Makalah.
+- **Metric Unit Support** — Configure margins and paper sizes directly in centimeters (`cm`), millimeters (`mm`), points (`pt`), or inches.
+- **Native Word TOC (<w:fldSimple>)** — Clean XML fields that auto-update in Word with right tab stop dot leaders.
+- **Token Bloat Reduction (`WORD_MCP_TOOLSET`)** — Switch between `minimal` (10 tools), `academic` (30 tools), `live_only` (45 tools), or `full` profiles to save up to 75% LLM context window.
+- **Office 365 / OneDrive COM Reliability** — ROT fallback scanning and clear `PermissionError [Errno 13]` handling when files are open in Word GUI.
 - **Live editing** — Edit documents while they're open in Word. No save-close-reopen cycle.
 - **Full undo** — Every AI action is a single Ctrl+Z. Made a mistake? Just undo it.
 - **Native tracked changes** — Real Word revisions with your name, not XML hacks.
 - **Threaded comments** — Add, reply, resolve, and delete comments like a human reviewer.
-- **Layout diagnostics** — Detects formatting problems before they become print disasters.
-- **Equations & cross-references** — Insert math formulas and auto-updating references.
-- **120 tools** — The most comprehensive Word MCP server available.
 
 ## Quick Start
 
-```bash
-pip install word-mcp-live
-```
-
-Or install from source:
+Install from source:
 
 ```bash
-git clone https://github.com/ykarapazar/word-mcp-live.git
-cd word-mcp-live
+git clone https://github.com/RvlDX/msword-mcp.git
+cd msword-mcp
 pip install -e .
 ```
 
@@ -279,8 +276,52 @@ Live tools now work on macOS via JavaScript for Automation (JXA). Same tool name
 | `MCP_TRANSPORT` | `stdio` | Transport type: `stdio`, `sse`, or `streamable-http` |
 | `MCP_HOST` | `0.0.0.0` | Host to bind (for SSE/HTTP transports) |
 | `MCP_PORT` | `8000` | Port to bind (for SSE/HTTP transports) |
+| `WORD_MCP_TOOLSET` | `full` | Toolset filter profile to reduce context bloat: `minimal` (10 tools), `academic` (30 tools), `live_only` (45 tools), or `full` (121 tools) |
 
 For remote deployment, see [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md).
+
+## 🎓 Academic, Thesis & Journal Publishing Support
+
+`msword-mcp` is pre-configured with complete out-of-the-box support for academic guidelines (Indonesian Skripsi/Thesis, Makalah, and SINTA 1–6 / IEEE Journals):
+
+### 1. Indonesian Thesis / Skripsi (`indonesian_thesis`)
+Setup an entire compliant thesis structure with 1 tool call:
+- **Paper & Margins**: A4, 4-4-3-3 cm (Left 4 cm, Top 4 cm, Bottom 3 cm, Right 3 cm).
+- **Typography**: Times New Roman 12 pt, 1.5 line spacing, Justified alignment, 1.0 cm first-line indent.
+- **Section & Academic Page Numbering**:
+  - **Cover**: No page numbers.
+  - **Preliminaries (Halaman Judul, Pengesahan, Abstrak, Daftar Isi)**: Lowercase Roman numerals (`i, ii, iii...`), footer center.
+  - **Chapters (BAB I s/d BAB V)**: Arabic numerals (`1, 2, 3...`), restart at 1. First page of each chapter in bottom-center, subsequent pages in top-right.
+  - **References (Daftar Pustaka)**: Continuous Arabic numbering in top-right.
+
+```json
+// Tool call
+apply_document_preset({"filename": "skripsi.docx", "preset": "indonesian_thesis"})
+```
+
+### 2. SINTA Journal / IEEE 2-Column Articles (`sinta_journal`)
+Compliant with Indonesian SINTA 1–6 and scientific conference templates:
+- **Section 0 (Title, Authors, Abstract, Keywords)**: Single column (1-col).
+- **Section 1 (Body: Pendahuluan, Metode, Hasil, Diskusi, Pustaka)**: Two columns (2-col, 0.65 cm spacing, continuous section break).
+- **Typography**: Times New Roman 10 pt, single spacing, 4 pt space after, Justified alignment, 0.75 cm indent.
+
+```json
+// Tool call
+apply_document_preset({"filename": "jurnal_sinta.docx", "preset": "sinta_journal"})
+```
+
+### 3. Native Word Table of Contents (TOC)
+Inserts native Word OpenXML fields (`<w:fldSimple w:instr="TOC \o '1-3' \h \z \u"/>`) with `<w:updateFields/>` so Word calculates exact page numbers when opened:
+
+```json
+// Tool call
+add_table_of_contents({
+  "filename": "skripsi.docx",
+  "title": "DAFTAR ISI",
+  "max_level": 3,
+  "use_native_field": true
+})
+```
 
 ## Example Prompts
 
@@ -384,12 +425,12 @@ The comment appears in Word's Review panel, anchored to the specified text.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and how to add new tools.
 
-Found a bug? [Open an issue](https://github.com/ykarapazar/word-mcp-live/issues/new?template=bug_report.md).
-Have an idea? [Request a feature](https://github.com/ykarapazar/word-mcp-live/issues/new?template=feature_request.md).
+Found a bug? [Open an issue](https://github.com/RvlDX/msword-mcp/issues/new?template=bug_report.md).
+Have an idea? [Request a feature](https://github.com/RvlDX/msword-mcp/issues/new?template=feature_request.md).
 
 ## Acknowledgments
 
-Built on top of [GongRzhe/Office-Word-MCP-Server](https://github.com/GongRzhe/Office-Word-MCP-Server) by GongRzhe (MIT License).
+Built on top of [ykarapazar/word-mcp-live](https://github.com/ykarapazar/word-mcp-live) and [GongRzhe/Office-Word-MCP-Server](https://github.com/GongRzhe/Office-Word-MCP-Server) (MIT License).
 
 Additional libraries: [python-docx](https://python-docx.readthedocs.io/) &middot; [FastMCP](https://github.com/modelcontextprotocol/python-sdk) &middot; [pywin32](https://github.com/mhammond/pywin32)
 
@@ -399,9 +440,9 @@ This server runs entirely on your local machine. No data is collected, transmitt
 
 ## Support
 
-- **Bug reports:** [Open an issue](https://github.com/ykarapazar/word-mcp-live/issues/new?template=bug_report.md)
-- **Feature requests:** [Request a feature](https://github.com/ykarapazar/word-mcp-live/issues/new?template=feature_request.md)
-- **Discussions:** [GitHub Discussions](https://github.com/ykarapazar/word-mcp-live/discussions)
+- **Bug reports:** [Open an issue](https://github.com/RvlDX/msword-mcp/issues/new?template=bug_report.md)
+- **Feature requests:** [Request a feature](https://github.com/RvlDX/msword-mcp/issues/new?template=feature_request.md)
+- **Discussions:** [GitHub Discussions](https://github.com/RvlDX/msword-mcp/discussions)
 
 ## License
 
@@ -409,12 +450,12 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ## Star History
 
-<a href="https://star-history.com/#ykarapazar/word-mcp-live&Date">
+<a href="https://star-history.com/#RvlDX/msword-mcp&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=ykarapazar/word-mcp-live&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=ykarapazar/word-mcp-live&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=ykarapazar/word-mcp-live&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=RvlDX/msword-mcp&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=RvlDX/msword-mcp&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=RvlDX/msword-mcp&type=Date" />
  </picture>
 </a>
 
-<!-- mcp-name: io.github.ykarapazar/word-mcp-live -->
+<!-- mcp-name: io.github.RvlDX/msword-mcp -->

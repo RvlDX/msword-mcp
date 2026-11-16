@@ -35,10 +35,10 @@ dev = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/ykarapazar/word-mcp-live"
-"Bug Tracker" = "https://github.com/ykarapazar/word-mcp-live/issues"
-"Changelog" = "https://github.com/ykarapazar/word-mcp-live/blob/main/CHANGELOG.md"
-"Documentation" = "https://github.com/ykarapazar/word-mcp-live#readme"
+"Homepage" = "https://github.com/RvlDX/msword-mcp"
+"Bug Tracker" = "https://github.com/RvlDX/msword-mcp/issues"
+"Changelog" = "https://github.com/RvlDX/msword-mcp/blob/main/CHANGELOG.md"
+"Documentation" = "https://github.com/RvlDX/msword-mcp#readme"
 
 [tool.hatch.build.targets.wheel]
 only-include = [
