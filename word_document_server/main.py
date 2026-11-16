@@ -161,8 +161,78 @@ def setup_logging(debug_mode):
 mcp = FastMCP("Word Document Server", version=__version__)
 
 
+TOOLSETS = {
+    "minimal": {
+        "create_document",
+        "copy_document",
+        "get_document_info",
+        "get_document_text",
+        "add_paragraph",
+        "add_heading",
+        "add_table",
+        "search_and_replace",
+        "convert_to_pdf",
+        "apply_document_preset",
+    },
+    "academic": {
+        "create_document",
+        "copy_document",
+        "get_document_info",
+        "get_document_text",
+        "get_document_outline",
+        "add_paragraph",
+        "add_heading",
+        "add_table",
+        "add_picture",
+        "add_page_break",
+        "search_and_replace",
+        "format_text",
+        "format_table",
+        "set_page_layout",
+        "add_page_numbers",
+        "add_section_break",
+        "set_paragraph_spacing",
+        "add_footnote_to_document",
+        "add_footnote_robust",
+        "delete_footnote_robust",
+        "add_table_of_contents",
+        "apply_document_preset",
+        "convert_to_pdf",
+        "insert_line_or_paragraph_near_text",
+        "insert_header_near_text",
+        "insert_numbered_list_near_text",
+        "replace_paragraph_block_below_header",
+        "replace_block_between_manual_anchors",
+        "word_live_get_text",
+        "word_live_save",
+    },
+    "live_only": None,
+    "full": None,
+}
+
+
 def register_tools():
     """Register all tools with the MCP server using FastMCP decorators."""
+    active_toolset = os.getenv("WORD_MCP_TOOLSET", "full").strip().lower()
+    allowed = TOOLSETS.get(active_toolset, None)
+    registered_count = 0
+    orig_tool = mcp.tool
+
+    def filtered_tool(*t_args, **t_kwargs):
+        def decorator(fn):
+            nonlocal registered_count
+            name = fn.__name__
+            if active_toolset == "live_only":
+                if not (name.startswith("word_live_") or name.startswith("word_screen_capture")):
+                    return fn
+            elif allowed is not None:
+                if name not in allowed:
+                    return fn
+            registered_count += 1
+            return orig_tool(*t_args, **t_kwargs)(fn)
+        return decorator
+
+    mcp.tool = filtered_tool
     
     # Document tools (create, copy, info, etc.)
     @mcp.tool(
@@ -1689,6 +1759,13 @@ def register_tools():
         filename: str = None,
         section_index: int = 1,
         orientation: str = None,
+        margin_unit: str = "cm",
+        margin_top: float = None,
+        margin_bottom: float = None,
+        margin_left: float = None,
+        margin_right: float = None,
+        page_width: float = None,
+        page_height: float = None,
         page_width_inches: float = None,
         page_height_inches: float = None,
         margin_top_inches: float = None,
@@ -1696,9 +1773,11 @@ def register_tools():
         margin_left_inches: float = None,
         margin_right_inches: float = None,
     ):
-        """[Requires Word open — Windows or macOS] Set page layout (orientation, size, margins) for a section in a Word document open in Word. Requires Word running."""
+        """[Requires Word open — Windows or macOS] Set page layout (orientation, size, margins in cm/mm/inch) for a section in a Word document open in Word. Requires Word running."""
         return live_layout_tools.word_live_set_page_layout(
             filename, section_index, orientation,
+            margin_unit, margin_top, margin_bottom, margin_left, margin_right,
+            page_width, page_height,
             page_width_inches, page_height_inches,
             margin_top_inches, margin_bottom_inches,
             margin_left_inches, margin_right_inches,
@@ -1834,6 +1913,15 @@ def register_tools():
         filename: str,
         section_index: int = 0,
         orientation: str = None,
+        margin_unit: str = "cm",
+        margin_top: float = None,
+        margin_bottom: float = None,
+        margin_left: float = None,
+        margin_right: float = None,
+        page_width: float = None,
+        page_height: float = None,
+        columns: int = None,
+        column_spacing_cm: float = None,
         page_width_inches: float = None,
         page_height_inches: float = None,
         margin_top_inches: float = None,
@@ -1841,9 +1929,12 @@ def register_tools():
         margin_left_inches: float = None,
         margin_right_inches: float = None,
     ):
-        """Set page layout (orientation, size, margins) for a document section."""
+        """Set page layout (orientation, size, margins in cm/mm/inch, multi-column) for a document section."""
         return layout_tools.set_page_layout(
             filename, section_index, orientation,
+            margin_unit, margin_top, margin_bottom, margin_left, margin_right,
+            page_width, page_height,
+            columns, column_spacing_cm,
             page_width_inches, page_height_inches,
             margin_top_inches, margin_bottom_inches,
             margin_left_inches, margin_right_inches,
@@ -1883,12 +1974,30 @@ def register_tools():
         prefix: str = "",
         suffix: str = "",
         include_total: bool = False,
+        number_format: str = "decimal",
+        restart_numbering: bool = False,
+        start_at: int = 1,
+        different_first_page: bool = False,
+        first_page_position: str = "footer_center",
+        subsequent_position: str = "header_right",
     ):
-        """Add page numbers to header or footer using PAGE/NUMPAGES fields."""
+        """Add academic page numbers with roman/arabic formats, section restarts, and different first page rules."""
         return layout_tools.add_page_numbers(
             filename, section_index, position, alignment,
             prefix, suffix, include_total,
+            number_format, restart_numbering, start_at,
+            different_first_page, first_page_position, subsequent_position,
         )
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Apply Document Preset",
+            destructiveHint=True,
+        ),
+    )
+    def apply_document_preset(filename: str, preset: str = "indonesian_thesis"):
+        """Apply a complete document preset in 1 macro call (e.g. 'indonesian_thesis' for A4, 4-4-3-3 cm, TNR 12pt, 1.5 spacing, 4 structured sections)."""
+        return layout_tools.apply_document_preset(filename, preset)
 
     @mcp.tool(
         annotations=ToolAnnotations(
@@ -1915,12 +2024,15 @@ def register_tools():
         space_after_pt: float = None,
         line_spacing: float = None,
         line_spacing_rule: str = None,
+        alignment: str = None,
+        first_line_indent_cm: float = None,
     ):
-        """Set paragraph spacing (before/after/line) for one or a range of paragraphs.
+        """Set paragraph spacing (before/after/line), alignment (justify/center/left/right), and first_line_indent_cm for one or a range of paragraphs.
         line_spacing_rule: single, 1.5_lines, double, exactly, at_least, multiple."""
         return layout_tools.set_paragraph_spacing(
             filename, paragraph_index, start_paragraph, end_paragraph,
             space_before_pt, space_after_pt, line_spacing, line_spacing_rule,
+            alignment, first_line_indent_cm,
         )
 
     @mcp.tool(
@@ -1960,9 +2072,18 @@ def register_tools():
             destructiveHint=True,
         ),
     )
-    def add_table_of_contents(filename: str, title: str = "Table of Contents", max_level: int = 3):
-        """Add a table of contents based on heading styles."""
-        return content_tools.add_table_of_contents(filename, title, max_level)
+    def add_table_of_contents(
+        filename: str,
+        title: str = "Table of Contents",
+        max_level: int = 3,
+        use_native_field: bool = True,
+        tab_leader_dots: bool = True,
+        dot_leader_tab_cm: float = 14.5,
+    ):
+        """Add native Word TOC field (<w:fldSimple>) with auto-update on open, or right tab stop with dot leader."""
+        return content_tools.add_table_of_contents(
+            filename, title, max_level, use_native_field, tab_leader_dots, dot_leader_tab_cm,
+        )
 
     @mcp.tool(
         annotations=ToolAnnotations(
@@ -2003,6 +2124,10 @@ def register_tools():
     def verify_document(filename: str, password: str = None):
         """Verify document protection and/or digital signature."""
         return protection_tools.verify_document(filename, password)
+
+    # Restore original mcp.tool and log toolset registration
+    mcp.tool = orig_tool
+    print(f"WORD_MCP_TOOLSET active: '{active_toolset}' ({registered_count} tools registered)", file=sys.stderr)
 
 
 def run_server():
