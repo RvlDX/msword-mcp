@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-11-17
+
+### Added
+- **Academic Writing Skills Workflow**: Full integration of [academic-writing-skills](https://github.com/Nbill27/academic-writing-skills) by [Nbill27](https://github.com/Nbill27) covering genre-based outline, drafting, EYD V editing, and research coherence audit.
+- **Academic Tools Module (`academic_tools.py`)**:
+  - `setup_thesis_structure`: Automated scaffolding of complete Indonesian academic theses and internship reports (Cover, Front Matter, Bab I - V, and Bibliography) with 4-4-3-3 cm margins and roman/arabic page numbering.
+  - `audit_academic_formatting`: Comprehensive compliance checker for academic guidelines (A4, 4-4-3-3 cm margins, Times New Roman 12 pt, 1.5 line spacing, 1.0 cm paragraph indentation, heading hierarchy).
+  - `annotate_audit_findings`: In-document comment annotations pinpointing formatting violations and logic gaps directly in Word.
+  - `extract_citations_and_bibliography`: Citation matcher linking in-text academic citations with references in Daftar Pustaka.
+- **Live Word Indentation Control**: Added `first_line_indent_cm` and `left_indent_cm` to `word_live_set_paragraph_spacing`, allowing real-time modification of paragraph indentations and hanging indents in open Word documents.
+- **Academic Integration Rules**: Strict formatting and layout rules added to `.agents/rules/academic_word_integration.md` enforcing center-aligned chapter headings, justified narrative paragraphs, 1.0 cm first-line indent, and proper header/footer page numbering.
+
+### Fixed
+- **Line Spacing Multiplier Bug (Vertical Text Overlap)**: Fixed an issue where passing multiplier values (e.g., `1.5` or `2.0`) to `word_live_set_paragraph_spacing` was erroneously interpreted by Word COM as point values (1.5 pt), causing lines of text to collapse and overlap into an unreadable dense block. Values `<= 5.0` are now safely converted to line rules and point equivalents.
+- **Heading Pagination Breakage**: Prevented orphan and cut-off headings (`keep_with_next` automatically applied, and eliminated duplicate `page_break_before` that isolated chapter labels from their titles).
+
+### Changed
+- Standardized MCP server launch command to run Python directly with module invocation (`python -m word_document_server.main`) for greater stability on Windows.
+- Total registered MCP tools expanded to 125 tools.
+
 ## [1.6.22] - 2026-11-10
 
 ### Fixed
