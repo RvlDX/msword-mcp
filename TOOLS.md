@@ -117,6 +117,19 @@ These work on Windows, macOS, and Linux using python-docx. The document file mus
 | `set_paragraph_spacing` | Set paragraph spacing |
 | `add_bookmark` | Add a named bookmark |
 | `add_watermark` | Add a diagonal text watermark |
+| `apply_document_preset` | Apply complete preset (indonesian_thesis, sinta_journal, makalah, business, legal) |
+
+</details>
+
+<details>
+<summary><b>Academic Writing & Thesis</b></summary>
+
+| Tool | Description |
+|------|-------------|
+| `setup_thesis_structure` | Setup complete Indonesian thesis skeleton (Bab I–V, Front Matter, Daftar Pustaka) with 4-4-3-3 margins and Roman/Arabic page numbering |
+| `audit_academic_formatting` | Audit Word document against Indonesian academic formatting standards (A4, 4-4-3-3 cm, TNR 12pt, 1.5 spacing, 1cm indent, required chapters) |
+| `annotate_audit_findings` | Automatically attach Word review comments to problematic sections based on academic audit findings |
+| `extract_citations_and_bibliography` | Extract in-text citations and match against Daftar Pustaka / References to detect missing or unreferenced citations |
 
 </details>
 

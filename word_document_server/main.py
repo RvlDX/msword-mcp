@@ -34,6 +34,7 @@ from word_document_server.tools import (
     live_layout_tools,
     screen_capture_tools,
     layout_tools,
+    academic_tools,
 )
 from word_document_server.tools.content_tools import replace_paragraph_block_below_header_tool
 from word_document_server.tools.content_tools import replace_block_between_manual_anchors_tool
@@ -197,6 +198,10 @@ TOOLSETS = {
         "delete_footnote_robust",
         "add_table_of_contents",
         "apply_document_preset",
+        "setup_thesis_structure",
+        "audit_academic_formatting",
+        "annotate_audit_findings",
+        "extract_citations_and_bibliography",
         "convert_to_pdf",
         "insert_line_or_paragraph_near_text",
         "insert_header_near_text",
@@ -1857,12 +1862,15 @@ def register_tools():
         keep_with_next: bool = None,
         keep_together: bool = None,
         alignment: str = None,
+        first_line_indent_cm: float = None,
+        left_indent_cm: float = None,
     ):
-        """[Requires Word open — Windows or macOS] Set paragraph spacing and layout properties in a Word document open in Word. Paragraphs are 1-indexed. Requires Word running."""
+        """[Requires Word open — Windows or macOS] Set paragraph spacing, alignment, and indentation in an open Word document. Paragraphs are 1-indexed. Requires Word running."""
         return live_layout_tools.word_live_set_paragraph_spacing(
             filename, paragraph_index, start_paragraph, end_paragraph,
             space_before_pt, space_after_pt, line_spacing, line_spacing_rule,
             keep_with_next, keep_together, alignment,
+            first_line_indent_cm, left_indent_cm,
         )
 
     @mcp.tool(
@@ -2124,6 +2132,65 @@ def register_tools():
     def verify_document(filename: str, password: str = None):
         """Verify document protection and/or digital signature."""
         return protection_tools.verify_document(filename, password)
+
+    # --- Academic Writing & Thesis Tools ---
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Setup Thesis Structure",
+            destructiveHint=True,
+        ),
+    )
+    def setup_thesis_structure(
+        filename: str,
+        title: str,
+        author: str,
+        nim: str = "",
+        institution: str = "Universitas",
+        faculty: str = "",
+        department: str = "",
+        city: str = "Jakarta",
+        year: str = "2026",
+        preset: str = "indonesian_thesis",
+    ):
+        """Setup complete Indonesian thesis structure (Bab I - V, Front Matter, Daftar Pustaka) in a Word document with 4-4-3-3 cm margins and multi-section Roman/Arabic page numbering."""
+        return academic_tools.setup_thesis_structure(
+            filename, title, author, nim, institution, faculty, department, city, year, preset
+        )
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Audit Academic Formatting",
+            readOnlyHint=True,
+        ),
+    )
+    def audit_academic_formatting(filename: str):
+        """Audit a Word document against Indonesian academic formatting standards (A4, 4-4-3-3 cm margins, TNR 12pt, 1.5 spacing, 1cm indent, required chapters, and citations)."""
+        return academic_tools.audit_academic_formatting(filename)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Annotate Audit Findings",
+            destructiveHint=False,
+        ),
+    )
+    def annotate_audit_findings(
+        filename: str,
+        author: str = "Auditor Akademik",
+        initials: str = "AA",
+    ):
+        """Run academic audit and automatically attach Word review comments to problematic sections in the document."""
+        return academic_tools.annotate_audit_findings(filename, author, initials)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Extract Citations and Bibliography",
+            readOnlyHint=True,
+        ),
+    )
+    def extract_citations_and_bibliography(filename: str):
+        """Extract in-text citations and match them against the Daftar Pustaka / References section to detect missing or unreferenced citations."""
+        return academic_tools.extract_citations_and_bibliography(filename)
 
     # Restore original mcp.tool and log toolset registration
     mcp.tool = orig_tool

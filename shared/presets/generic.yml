@@ -1,0 +1,45 @@
+# Generic Indonesian academic preset.
+# Non-authoritative fallback; confirm every value against the current guide.
+preset_id: "generic"
+name: "Generic Indonesian academic format"
+description: "Starting point only, not an official campus rule."
+authority: "default_non_authoritative"
+
+# 14 structure variables. Chapter-only values are N/A for non-chapter genres.
+chapter_count: 5
+problem_statement_location: "parallel_subsections_in_introduction"
+chapter2_name: "Literature Review"
+conceptual_framework_location: "introduction_or_end_of_literature_review"
+results_discussion_structure: "combined"
+subchapter_numbering: "tiered_arabic"
+max_heading_depth: 4
+citation_style: "author_year"
+abstract_languages:
+  - "id"
+  - "en"
+abstract_max_words: 250
+special_front_matter:
+  - "approval_page"
+  - "originality_statement"
+figure_table_numbering: "by_chapter"
+mandatory_output: null
+writing_systematics: "at_end_of_introduction_if_required"
+similarity_limit: null
+
+# Formatting fallback
+paper_size: "A4"
+margin_top: "4cm"
+margin_bottom: "3cm"
+margin_left: "4cm"
+margin_right: "3cm"
+font_family: "Times New Roman"
+font_size: "12pt"
+line_spacing: "double"
+first_line_indent: "1.25cm"
+heading_chapter_prefix: "BAB "
+heading_chapter_num_format: "roman"
+heading_sub_dot: true
+heading_subsub_dot: false
+cover_title_size: "14pt"
+cover_title_bold: true
+page_numbering: "front_matter_roman_body_arabic"

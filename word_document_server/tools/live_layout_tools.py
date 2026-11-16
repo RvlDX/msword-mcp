@@ -403,6 +403,8 @@ async def word_live_set_paragraph_spacing(
     keep_with_next: bool = None,
     keep_together: bool = None,
     alignment: str = None,
+    first_line_indent_cm: float = None,
+    left_indent_cm: float = None,
 ) -> str:
     """Set paragraph spacing and layout properties in an open Word document.
 
@@ -413,15 +415,15 @@ async def word_live_set_paragraph_spacing(
         end_paragraph: End of range (1-indexed, inclusive).
         space_before_pt: Space before paragraph in points.
         space_after_pt: Space after paragraph in points.
-        line_spacing: Line spacing value IN POINTS (depends on rule).
-            IMPORTANT: For "multiple" rule, value is in points, NOT a multiplier.
-            Single spacing (1.0) = 12pt. So: 1.15 lines = 13.8pt, 1.5 lines = 18pt,
-            2.0 lines = 24pt. Formula: desired_lines * 12 = points_value.
+        line_spacing: Line spacing value IN POINTS (depends on rule) or multiplier.
+            Auto-converts multipliers <= 5.0 (e.g. 1.0, 1.5, 2.0) to avoid text overlap.
         line_spacing_rule: "single"(0), "1.5_lines"(1), "double"(2),
                            "at_least"(3), "exactly"(4), "multiple"(5).
         keep_with_next: Keep paragraph with next paragraph on same page (True/False).
         keep_together: Keep all lines of paragraph on same page (True/False).
         alignment: Paragraph alignment - "left"(0), "center"(1), "right"(2), "justify"(3).
+        first_line_indent_cm: First-line indent in centimeters (e.g. 1.0 cm).
+        left_indent_cm: Left indent in centimeters (e.g. 1.0 cm).
 
     Returns:
         JSON with count of affected paragraphs.
@@ -474,7 +476,19 @@ async def word_live_set_paragraph_spacing(
                 if line_spacing_rule is not None and line_spacing_rule in rule_map:
                     pf.LineSpacingRule = rule_map[line_spacing_rule]
                 if line_spacing is not None:
-                    pf.LineSpacing = line_spacing
+                    # Guard against multiplier confusion (e.g. 1.0, 1.5, 2.0 lines vs points)
+                    if line_spacing <= 5.0:
+                        if line_spacing == 1.0:
+                            pf.LineSpacingRule = 0  # single
+                        elif line_spacing == 1.5:
+                            pf.LineSpacingRule = 1  # 1.5_lines
+                        elif line_spacing == 2.0:
+                            pf.LineSpacingRule = 2  # double
+                        else:
+                            pf.LineSpacingRule = 5  # multiple
+                            pf.LineSpacing = line_spacing * 12.0
+                    else:
+                        pf.LineSpacing = line_spacing
                 if keep_with_next is not None:
                     pf.KeepWithNext = keep_with_next
                 if keep_together is not None:
@@ -483,6 +497,10 @@ async def word_live_set_paragraph_spacing(
                     align_map = {"left": 0, "center": 1, "right": 2, "justify": 3}
                     if alignment in align_map:
                         pf.Alignment = align_map[alignment]
+                if first_line_indent_cm is not None:
+                    pf.FirstLineIndent = first_line_indent_cm * (72.0 / 2.54)
+                if left_indent_cm is not None:
+                    pf.LeftIndent = left_indent_cm * (72.0 / 2.54)
                 count += 1
 
         return json.dumps({

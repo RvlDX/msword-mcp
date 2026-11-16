@@ -49,3 +49,9 @@ from word_document_server.tools import hyperlink_tools
 
 # Tracked changes tools
 from word_document_server.tools import tracked_changes_tools
+
+# Academic tools
+from word_document_server.tools.academic_tools import (
+    setup_thesis_structure, audit_academic_formatting,
+    annotate_audit_findings, extract_citations_and_bibliography
+)

@@ -205,10 +205,12 @@ def test_toolset_filter(monkeypatch):
     m.mcp = FastMCP("test_acad")
     m.register_tools()
     tools_acad = [t.name for t in asyncio.run(m.mcp.list_tools())]
-    assert len(tools_acad) == 30
+    assert len(tools_acad) == 34
     assert "add_footnote_to_document" in tools_acad
     assert "set_page_layout" in tools_acad
     assert "add_page_numbers" in tools_acad
+    assert "setup_thesis_structure" in tools_acad
+    assert "audit_academic_formatting" in tools_acad
 
 
 def test_document_preset_sinta_journal():

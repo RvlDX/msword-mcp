@@ -337,7 +337,34 @@ Compliant with Indonesian SINTA 1–6 and scientific conference templates:
 apply_document_preset({"filename": "jurnal_sinta.docx", "preset": "sinta_journal"})
 ```
 
-### 3. Native Word Table of Contents (TOC)
+### 3. Complete Thesis Skeleton Generation (`setup_thesis_structure`)
+Generate a complete Indonesian thesis structure with 1 tool call:
+- Section 0: Cover (Judul, Penulis, Lembaga, Tahun).
+- Section 1: Halaman Awal (Lembar Pengesahan, Kata Pengantar, Abstrak ID & EN, Daftar Isi) dengan penomoran romawi (`i, ii, iii...`).
+- Section 2: Bab I Pendahuluan s.d. Bab V Penutup dengan penomoran arab (`1, 2, 3...`) dan Heading 1 & Heading 2 lengkap.
+- Section 3: Daftar Pustaka dan Lampiran.
+
+```json
+// Tool call
+setup_thesis_structure({
+  "filename": "skripsi_lengkap.docx",
+  "title": "Analisis Pengaruh Sistem Informasi Terhadap Kinerja Karyawan",
+  "author": "Nama Mahasiswa",
+  "nim": "12345678",
+  "institution": "Universitas Indonesia",
+  "faculty": "Fakultas Ilmu Komputer",
+  "city": "Jakarta",
+  "year": "2026"
+})
+```
+
+### 4. Academic Formatting Audit & Inline Annotations (`audit_academic_formatting`, `annotate_audit_findings`)
+Automatically inspect a Word document against academic formatting standards (A4, margins 4-4-3-3 cm, Times New Roman 12 pt, 1.5 spacing, 1 cm first-line indent, and mandatory chapters):
+- `audit_academic_formatting`: Returns structured audit report with compliance score (0-100), passed checks, failed checks, and revision recommendations.
+- `annotate_audit_findings`: Automatically injects native Word review comments anchored to problematic paragraphs.
+- `extract_citations_and_bibliography`: Extracts in-text citations (APA/narrative) and cross-checks them against the Daftar Pustaka section.
+
+### 5. Native Word Table of Contents (TOC)
 Inserts native Word OpenXML fields (`<w:fldSimple w:instr="TOC \o '1-3' \h \z \u"/>`) with `<w:updateFields/>` so Word calculates exact page numbers when opened:
 
 ```json
@@ -458,6 +485,8 @@ Have an idea? [Request a feature](https://github.com/RvlDX/msword-mcp/issues/new
 ## Acknowledgments
 
 Built on top of [ykarapazar/word-mcp-live](https://github.com/ykarapazar/word-mcp-live) and [GongRzhe/Office-Word-MCP-Server](https://github.com/GongRzhe/Office-Word-MCP-Server) (MIT License).
+
+Academic writing skill workflow integrated with [academic-writing-skills](https://github.com/Nbill27/academic-writing-skills) by [Nbill27](https://github.com/Nbill27) (Indonesian academic writing rules, outline, drafting, EYD V editing, and research coherence audit).
 
 Additional libraries: [python-docx](https://python-docx.readthedocs.io/) &middot; [FastMCP](https://github.com/modelcontextprotocol/python-sdk) &middot; [pywin32](https://github.com/mhammond/pywin32)
 
