@@ -54,6 +54,11 @@ def check_file_writeable(filepath: str) -> Tuple[bool, str]:
         with open(filepath, 'a'):
             pass
         return True, ""
+    except PermissionError as e:
+        return False, (
+            f"File '{filepath}' is locked (PermissionError [Errno 13] - file is open in Word GUI). "
+            f"Use word_live_* tools to edit live while open in Word, or close the file in Word first: {str(e)}"
+        )
     except IOError as e:
         return False, f"File {filepath} is not writeable: {str(e)}"
     except Exception as e:

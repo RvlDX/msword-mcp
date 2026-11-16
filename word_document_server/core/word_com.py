@@ -34,12 +34,22 @@ def get_word_app():
         # No instance has documents; return the empty one (caller may open a file)
         return app
     except Exception:
-        # GetActiveObject failed entirely — try ROT scan
+        # GetActiveObject failed (e.g. MK_E_UNAVAILABLE in modern Office 365 / OneDrive) — try ROT scan
         app_with_docs = _find_word_with_docs()
         if app_with_docs is not None:
             return app_with_docs
+
+        # Fallback: attempt Dispatch in case Word is active without ROT registration
+        try:
+            app = win32com.client.Dispatch("Word.Application")
+            if app:
+                return app
+        except Exception:
+            pass
+
         raise RuntimeError(
-            "Microsoft Word is not running. Please open Word first."
+            "Microsoft Word is not running or COM interface is unavailable (MK_E_UNAVAILABLE). "
+            "Please ensure Microsoft Word is open."
         )
 
 
@@ -61,8 +71,9 @@ def _find_word_with_docs():
         rot = pythoncom.GetRunningObjectTable(0)
         enum = rot.EnumRunning()
 
-        # Pass 1: look for a Word.Application ROT entry with documents
+        # Pass 1: look for a Word.Application or Document ROT entry
         monikers_to_retry = []
+        any_app = None
         while True:
             batch = enum.Next(1)
             if not batch:
@@ -74,19 +85,28 @@ def _find_word_with_docs():
                 obj = rot.GetObject(moniker)
                 dispatch = obj.QueryInterface(pythoncom.IID_IDispatch)
                 com_obj = win32com.client.Dispatch(dispatch)
+
                 # Direct Application entry
                 if hasattr(com_obj, "Documents") and hasattr(com_obj, "ActiveDocument"):
                     if com_obj.Documents.Count > 0:
                         return com_obj
-                # Remember file monikers for pass 2
-                if name and (name.lower().endswith(".docx") or name.lower().endswith(".doc")):
+                    any_app = com_obj
+
+                # Document entry with Application property
+                if hasattr(com_obj, "Application"):
+                    app = com_obj.Application
+                    if hasattr(app, "Documents") and app.Documents.Count > 0:
+                        return app
+
+                # Remember file monikers for pass 2 (covers OneDrive, SharePoint, local docx)
+                if name and any(ext in name.lower() for ext in [".docx", ".doc", "d.docs.live.net", "sharepoint.com"]):
                     monikers_to_retry.append((name, moniker))
             except Exception:
                 # Also collect file monikers we couldn't QI yet
                 try:
                     ctx = pythoncom.CreateBindCtx(0)
                     name = moniker.GetDisplayName(ctx, None)
-                    if name and (name.lower().endswith(".docx") or name.lower().endswith(".doc")):
+                    if name and any(ext in name.lower() for ext in [".docx", ".doc", "d.docs.live.net", "sharepoint.com"]):
                         monikers_to_retry.append((name, moniker))
                 except Exception:
                     pass
@@ -99,10 +119,13 @@ def _find_word_with_docs():
                 dispatch = obj.QueryInterface(pythoncom.IID_IDispatch)
                 doc = win32com.client.Dispatch(dispatch)
                 app = doc.Application
-                if app.Documents.Count > 0:
+                if hasattr(app, "Documents") and app.Documents.Count > 0:
                     return app
             except Exception:
                 continue
+
+        if any_app is not None:
+            return any_app
     except Exception:
         pass
     return None
