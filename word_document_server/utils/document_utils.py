@@ -243,6 +243,36 @@ def find_paragraph_by_text(doc, text, partial_match=False):
     return matching_paragraphs
 
 
+def set_run_text_with_breaks(run, text: str):
+    """Set run text, replacing \\n with <w:br/> and \\t with <w:tab/> in OpenXML."""
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    r_elem = run._r
+    # Remove existing <w:t>, <w:br>, <w:tab> from r_elem while preserving rPr
+    for child in list(r_elem):
+        if child.tag.endswith('}t') or child.tag.endswith('}br') or child.tag.endswith('}tab'):
+            r_elem.remove(child)
+
+    text = text.replace("\\r\\n", "\n").replace("\\r", "\n").replace("\\n", "\n").replace("\\t", "\t")
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        if i > 0:
+            br = OxmlElement('w:br')
+            r_elem.append(br)
+        parts = line.split("\t")
+        for j, part in enumerate(parts):
+            if j > 0:
+                tab = OxmlElement('w:tab')
+                r_elem.append(tab)
+            if part:
+                t = OxmlElement('w:t')
+                t.text = part
+                if part.startswith(' ') or part.endswith(' '):
+                    t.set(qn('xml:space'), 'preserve')
+                r_elem.append(t)
+
+
 def find_and_replace_text(doc, old_text, new_text):
     """
     Find and replace text throughout the document, skipping Table of Contents (TOC) paragraphs.
@@ -256,6 +286,7 @@ def find_and_replace_text(doc, old_text, new_text):
         Number of replacements made
     """
     count = 0
+    clean_new = new_text.replace("\\r\\n", "\n").replace("\\r", "\n").replace("\\n", "\n").replace("\\t", "\t")
     
     # Search in paragraphs
     for para in doc.paragraphs:
@@ -265,7 +296,8 @@ def find_and_replace_text(doc, old_text, new_text):
         if old_text in get_effective_text(para):
             for run in para.runs:
                 if old_text in run.text:
-                    run.text = run.text.replace(old_text, new_text)
+                    new_val = run.text.replace(old_text, clean_new)
+                    set_run_text_with_breaks(run, new_val)
                     count += 1
 
     # Search in tables
@@ -279,7 +311,8 @@ def find_and_replace_text(doc, old_text, new_text):
                     if old_text in get_effective_text(para):
                         for run in para.runs:
                             if old_text in run.text:
-                                run.text = run.text.replace(old_text, new_text)
+                                new_val = run.text.replace(old_text, clean_new)
+                                set_run_text_with_breaks(run, new_val)
                                 count += 1
     
     return count

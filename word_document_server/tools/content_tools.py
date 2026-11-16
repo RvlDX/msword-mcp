@@ -7,13 +7,54 @@ including headings, paragraphs, tables, images, and page breaks.
 import os
 from typing import List, Optional, Dict, Any
 from docx import Document
-from docx.shared import Inches, Pt, RGBColor
+from docx.shared import Inches, Pt, RGBColor, Cm
+from docx.enum.text import WD_TAB_ALIGNMENT, WD_TAB_LEADER
+from docx.oxml import parse_xml, OxmlElement
+from docx.oxml.ns import nsdecls, qn
 
 from word_document_server.utils.document_utils import get_effective_text
 
 from word_document_server.utils.file_utils import check_file_writeable, ensure_docx_extension, get_file_lock
 from word_document_server.utils.document_utils import find_and_replace_text, insert_header_near_text, insert_numbered_list_near_text, insert_line_or_paragraph_near_text, replace_paragraph_block_below_header, replace_block_between_manual_anchors
 from word_document_server.core.styles import ensure_heading_style, ensure_table_style
+
+
+def populate_paragraph_text(
+    paragraph,
+    text: str,
+    font_name: Optional[str] = None,
+    font_size: Optional[int] = None,
+    bold: Optional[bool] = None,
+    italic: Optional[bool] = None,
+    color: Optional[str] = None,
+):
+    """Parse text with newline (\\n) and tab (\\t) escape sequences, inserting <w:br/> and <w:tab/>."""
+    if not text:
+        return
+    text = text.replace("\\r\\n", "\n").replace("\\r", "\n").replace("\\n", "\n").replace("\\t", "\t")
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        if i > 0:
+            run_br = paragraph.add_run()
+            run_br.add_break()
+        parts = line.split("\t")
+        for j, part in enumerate(parts):
+            if j > 0:
+                run_tab = paragraph.add_run()
+                run_tab.add_tab()
+            if part:
+                run = paragraph.add_run(part)
+                if font_name:
+                    run.font.name = font_name
+                if font_size:
+                    run.font.size = Pt(font_size)
+                if bold is not None:
+                    run.font.bold = bold
+                if italic is not None:
+                    run.font.italic = italic
+                if color:
+                    color_hex = color.lstrip('#')
+                    run.font.color.rgb = RGBColor.from_string(color_hex)
 
 
 async def add_heading(filename: str, text: str, level: int = 1,
@@ -62,39 +103,24 @@ async def add_heading(filename: str, text: str, level: int = 1,
 
             # Try to add heading with style
             try:
-                heading = doc.add_heading(text, level=level)
+                heading = doc.add_heading(level=level)
+                populate_paragraph_text(heading, text, font_name, font_size, bold, italic)
             except Exception as style_error:
                 # If style-based approach fails, use direct formatting
-                heading = doc.add_paragraph(text)
+                heading = doc.add_paragraph()
                 heading.style = doc.styles['Normal']
-                if heading.runs:
-                    run = heading.runs[0]
-                    run.bold = True
-                    # Adjust size based on heading level
-                    if level == 1:
-                        run.font.size = Pt(16)
-                    elif level == 2:
-                        run.font.size = Pt(14)
-                    else:
-                        run.font.size = Pt(12)
-
-            # Apply formatting to all runs in the heading
-            if any([font_name, font_size, bold is not None, italic is not None]):
-                for run in heading.runs:
-                    if font_name:
-                        run.font.name = font_name
-                    if font_size:
-                        run.font.size = Pt(font_size)
-                    if bold is not None:
-                        run.font.bold = bold
-                    if italic is not None:
-                        run.font.italic = italic
+                def_size = 16 if level == 1 else (14 if level == 2 else 12)
+                populate_paragraph_text(
+                    heading,
+                    text,
+                    font_name=font_name,
+                    font_size=font_size or def_size,
+                    bold=True if bold is None else bold,
+                    italic=italic,
+                )
 
             # Add bottom border if requested
             if border_bottom:
-                from docx.oxml import OxmlElement
-                from docx.oxml.ns import qn
-
                 pPr = heading._element.get_or_add_pPr()
                 pBdr = OxmlElement('w:pBdr')
 
@@ -121,7 +147,7 @@ async def add_paragraph(filename: str, text: str, style: Optional[str] = None,
 
     Args:
         filename: Path to the Word document
-        text: Paragraph text
+        text: Paragraph text (supports \\n for line breaks and \\t for tabs)
         style: Optional paragraph style name
         font_name: Font family (e.g., 'Helvetica', 'Times New Roman')
         font_size: Font size in points (e.g., 14, 36)
@@ -143,7 +169,8 @@ async def add_paragraph(filename: str, text: str, style: Optional[str] = None,
     try:
         async with get_file_lock(filename):
             doc = Document(filename)
-            paragraph = doc.add_paragraph(text)
+            paragraph = doc.add_paragraph()
+            populate_paragraph_text(paragraph, text, font_name, font_size, bold, italic, color)
 
             if style:
                 try:
@@ -153,22 +180,6 @@ async def add_paragraph(filename: str, text: str, style: Optional[str] = None,
                     paragraph.style = doc.styles['Normal']
                     doc.save(filename)
                     return f"Style '{style}' not found, paragraph added with default style to {filename}"
-
-            # Apply formatting to all runs in the paragraph
-            if any([font_name, font_size, bold is not None, italic is not None, color]):
-                for run in paragraph.runs:
-                    if font_name:
-                        run.font.name = font_name
-                    if font_size:
-                        run.font.size = Pt(font_size)
-                    if bold is not None:
-                        run.font.bold = bold
-                    if italic is not None:
-                        run.font.italic = italic
-                    if color:
-                        # Remove any '#' prefix if present
-                        color_hex = color.lstrip('#')
-                        run.font.color.rgb = RGBColor.from_string(color_hex)
 
             doc.save(filename)
         return f"Paragraph added to {filename}"
@@ -310,13 +321,24 @@ async def add_page_break(filename: str) -> str:
         return f"Failed to add page break: {str(e)}"
 
 
-async def add_table_of_contents(filename: str, title: str = "Table of Contents", max_level: int = 3) -> str:
-    """Add a table of contents to a Word document based on heading styles.
+async def add_table_of_contents(
+    filename: str,
+    title: str = "Table of Contents",
+    max_level: int = 3,
+    use_native_field: bool = True,
+    tab_leader_dots: bool = True,
+    dot_leader_tab_cm: float = 14.5,
+) -> str:
+    """Add a native Word Table of Contents (TOC) field or right tab stop with dot leader.
     
     Args:
         filename: Path to the Word document
         title: Optional title for the table of contents
         max_level: Maximum heading level to include (1-9)
+        use_native_field: If True (default), inserts native Word XML TOC field (<w:fldSimple w:instr="TOC ..."/>)
+                         and enables auto-update on open (<w:updateFields/>).
+        tab_leader_dots: If use_native_field=False, generates explicit heading lines with right tab stops and dot leader.
+        dot_leader_tab_cm: Position of right tab stop with dot leader in cm (default: 14.5 cm).
     """
     filename = ensure_docx_extension(filename)
     
@@ -335,13 +357,31 @@ async def add_table_of_contents(filename: str, title: str = "Table of Contents",
         async with get_file_lock(filename):
             doc = Document(filename)
 
-            # Collect headings and their positions
+            if use_native_field:
+                # Enable updateFields in settings.xml so Word updates TOC automatically on open
+                settings = doc.settings.element
+                if settings.find(qn('w:updateFields')) is None:
+                    settings.append(parse_xml(f'<w:updateFields {nsdecls("w")} w:val="true"/>'))
+
+                if title:
+                    doc.add_heading(title, level=1)
+
+                p_toc = doc.add_paragraph()
+                fld_xml = (
+                    f'<w:fldSimple {nsdecls("w")} w:instr="TOC \\o &quot;1-{max_level}&quot; \\h \\z \\u">'
+                    f'<w:r><w:rPr><w:noProof/></w:rPr><w:t>Daftar Isi (diperbarui otomatis oleh Word)</w:t></w:r>'
+                    f'</w:fldSimple>'
+                )
+                p_toc._p.append(parse_xml(fld_xml))
+                doc.add_page_break()
+                doc.save(filename)
+                return f"Native Word Table of Contents (levels 1-{max_level}) added to {filename} with auto-update enabled."
+
+            # Alternative: Dot Leader Tab Stop
             headings = []
             for i, paragraph in enumerate(doc.paragraphs):
-                # Check if paragraph style is a heading
                 if paragraph.style and paragraph.style.name.startswith('Heading '):
                     try:
-                        # Extract heading level from style name
                         level = int(paragraph.style.name.split(' ')[1])
                         if level <= max_level:
                             headings.append({
@@ -350,52 +390,27 @@ async def add_table_of_contents(filename: str, title: str = "Table of Contents",
                                 'position': i
                             })
                     except (ValueError, IndexError):
-                        # Skip if heading level can't be determined
                         pass
 
             if not headings:
                 return f"No headings found in document {filename}. Table of contents not created."
 
-            # Create a new document with the TOC
-            toc_doc = Document()
-
-            # Add title
             if title:
-                toc_doc.add_heading(title, level=1)
+                doc.add_heading(title, level=1)
 
-            # Add TOC entries
             for heading in headings:
-                # Indent based on level (using tab characters)
+                p = doc.add_paragraph()
+                if tab_leader_dots:
+                    p.paragraph_format.tab_stops.add_tab_stop(
+                        Cm(dot_leader_tab_cm), WD_TAB_ALIGNMENT.RIGHT, WD_TAB_LEADER.DOTS
+                    )
                 indent = '    ' * (heading['level'] - 1)
-                toc_doc.add_paragraph(f"{indent}{heading['text']}")
+                p.add_run(f"{indent}{heading['text']}\t")
 
-            # Add page break
-            toc_doc.add_page_break()
+            doc.add_page_break()
+            doc.save(filename)
 
-            # Get content from original document
-            for paragraph in doc.paragraphs:
-                p = toc_doc.add_paragraph(paragraph.text)
-                # Copy style if possible
-                try:
-                    if paragraph.style:
-                        p.style = paragraph.style.name
-                except:
-                    pass
-
-            # Copy tables
-            for table in doc.tables:
-                # Create a new table with the same dimensions
-                new_table = toc_doc.add_table(rows=len(table.rows), cols=len(table.columns))
-                # Copy cell contents
-                for i, row in enumerate(table.rows):
-                    for j, cell in enumerate(row.cells):
-                        for paragraph in cell.paragraphs:
-                            new_table.cell(i, j).text = paragraph.text
-
-            # Save the new document with TOC
-            toc_doc.save(filename)
-
-        return f"Table of contents with {len(headings)} entries added to {filename}"
+        return f"Table of contents with {len(headings)} entries (dot leader tab) added to {filename}"
     except Exception as e:
         return f"Failed to add table of contents: {str(e)}"
 

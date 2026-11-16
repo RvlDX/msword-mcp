@@ -69,7 +69,7 @@ async def word_live_insert_text(
 
         # Convert literal escape sequences to actual characters.
         # MCP/JSON sends backslash-r as 2 chars; Word COM needs chr(13) for paragraph marks.
-        text = text.replace("\\r\\n", "\r").replace("\\r", "\r").replace("\\n", "\r")
+        text = text.replace("\\r\\n", "\r").replace("\\r", "\r").replace("\\n", "\r").replace("\\t", "\t")
 
         with undo_record(app, "MCP: Insert Text", doc):
             prev_tracking = doc.TrackRevisions
@@ -981,6 +981,8 @@ async def word_live_replace_text(
             "Use replace_all=False — each unique text only needs one replacement."
         })
 
+    replace_text = replace_text.replace("\\r\\n", "\r").replace("\\r", "\r").replace("\\n", "\r").replace("\\t", "\t")
+
     try:
         from word_document_server.core.word_com import get_word_app, find_document, undo_record
 
@@ -1146,9 +1148,15 @@ async def word_live_insert_paragraphs(
                     rng = target_para.Range.Duplicate
                     rng.Collapse(0)  # wdCollapseEnd
                     for para_text in paragraphs:
+                        clean_para = (
+                            para_text.replace("\\r\\n", "\r")
+                            .replace("\\r", "\r")
+                            .replace("\\n", "\r")
+                            .replace("\\t", "\t")
+                        )
                         rng.InsertParagraphAfter()
                         rng.Collapse(0)  # wdCollapseEnd
-                        rng.InsertAfter(para_text)
+                        rng.InsertAfter(clean_para)
                         try:
                             rng.Style = resolved_style
                         except Exception:
@@ -1157,11 +1165,17 @@ async def word_live_insert_paragraphs(
                         inserted += 1
                 else:  # "before"
                     for para_text in reversed(paragraphs):
+                        clean_para = (
+                            para_text.replace("\\r\\n", "\r")
+                            .replace("\\r", "\r")
+                            .replace("\\n", "\r")
+                            .replace("\\t", "\t")
+                        )
                         rng = target_para.Range.Duplicate
                         rng.Collapse(1)  # wdCollapseStart
                         rng.InsertParagraphBefore()
                         rng.Collapse(1)  # wdCollapseStart
-                        rng.InsertAfter(para_text)
+                        rng.InsertAfter(clean_para)
                         try:
                             rng.Style = resolved_style
                         except Exception:
