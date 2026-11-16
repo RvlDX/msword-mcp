@@ -12,7 +12,7 @@ authors = [
     {name = "GongRzhe", email = "gongrzhe@gmail.com"},
     {name = "Yüce Karapazar"}
 ]
-keywords = ["mcp", "word", "docx", "microsoft-word", "document", "com-automation", "python-docx", "ai", "llm", "claude"]
+keywords = ["mcp", "word", "docx", "microsoft-word", "document", "com-automation", "python-docx", "ai", "llm", "antigravity", "claude"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",

@@ -14,7 +14,7 @@
 
 ---
 
-**msword-mcp** (enhanced fork) gives any AI assistant that supports [MCP](https://modelcontextprotocol.io/) full control of Microsoft Word. Open a document, tell the AI what you need, and watch it happen — formatting, academic thesis layouts, multi-column journal structures, tracked changes, comments, and all. Changes can appear live in your open Word window or be processed offline directly via OpenXML.
+**msword-mcp** (enhanced fork) gives any AI assistant that supports [MCP](https://modelcontextprotocol.io/) full control of Microsoft Word (including Google Antigravity, Cursor, Claude Desktop, VS Code, Windsurf, and Codex). Open a document, tell the AI what you need, and watch it happen — formatting, academic thesis layouts, multi-column journal structures, tracked changes, comments, and all. Changes can appear live in your open Word window or be processed offline directly via OpenXML.
 
 <table>
 <tr>
@@ -72,6 +72,33 @@ pip install -e .
 ## Client Installation
 
 <details open>
+<summary><b>Google Antigravity (AGY)</b></summary>
+
+Add to your Antigravity MCP configuration (`mcp_config.json` or Antigravity MCP Settings):
+
+```json
+{
+  "mcpServers": {
+    "word": {
+      "command": "python",
+      "args": ["-m", "word_document_server.main"],
+      "env": {
+        "MCP_AUTHOR": "Your Name",
+        "WORD_MCP_TOOLSET": "academic"
+      }
+    }
+  }
+}
+```
+
+Or via Antigravity CLI:
+```bash
+agy mcp add word -- python -m word_document_server.main
+```
+
+</details>
+
+<details>
 <summary><b>Claude Desktop</b></summary>
 
 Add to your `claude_desktop_config.json`:
