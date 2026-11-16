@@ -17,10 +17,36 @@ _MAC_AVAILABLE = sys.platform == 'darwin'
 _PTS_PER_INCH = 72.0
 
 
+def _parse_live_unit_pts(value: Optional[float], unit: str = "cm", fallback_inches: Optional[float] = None):
+    """Convert metric or imperial input to points for Word COM."""
+    if value is not None:
+        u = unit.lower().strip()
+        if u in ("cm", "centimeter", "centimeters"):
+            return value * (72.0 / 2.54), f"{value}cm"
+        elif u in ("mm", "millimeter", "millimeters"):
+            return value * (72.0 / 25.4), f"{value}mm"
+        elif u in ("pt", "point", "points"):
+            return float(value), f"{value}pt"
+        elif u in ("inch", "inches", "in"):
+            return value * 72.0, f"{value}in"
+        else:
+            return value * (72.0 / 2.54), f"{value}cm"
+    if fallback_inches is not None:
+        return fallback_inches * 72.0, f"{fallback_inches}in"
+    return None, None
+
+
 async def word_live_set_page_layout(
     filename: str = None,
     section_index: int = 1,
     orientation: str = None,
+    margin_unit: str = "cm",
+    margin_top: float = None,
+    margin_bottom: float = None,
+    margin_left: float = None,
+    margin_right: float = None,
+    page_width: float = None,
+    page_height: float = None,
     page_width_inches: float = None,
     page_height_inches: float = None,
     margin_top_inches: float = None,
@@ -34,27 +60,38 @@ async def word_live_set_page_layout(
         filename: Document name or path (None = active document).
         section_index: Section number (1-indexed, COM style). Default 1.
         orientation: "portrait" or "landscape".
-        page_width_inches: Page width in inches.
-        page_height_inches: Page height in inches.
-        margin_top_inches: Top margin in inches.
-        margin_bottom_inches: Bottom margin in inches.
-        margin_left_inches: Left margin in inches.
-        margin_right_inches: Right margin in inches.
+        margin_unit: Unit for margins and dimensions: "cm", "mm", "inch", or "pt". Default "cm".
+        margin_top: Top margin in specified unit.
+        margin_bottom: Bottom margin in specified unit.
+        margin_left: Left margin in specified unit.
+        margin_right: Right margin in specified unit.
+        page_width: Page width in specified unit.
+        page_height: Page height in specified unit.
+        page_width_inches: Page width in inches (legacy fallback).
+        page_height_inches: Page height in inches (legacy fallback).
+        margin_top_inches: Top margin in inches (legacy fallback).
+        margin_bottom_inches: Bottom margin in inches (legacy fallback).
+        margin_left_inches: Left margin in inches (legacy fallback).
+        margin_right_inches: Right margin in inches (legacy fallback).
 
     Returns:
         JSON with result info.
     """
     if _MAC_AVAILABLE:
         from word_document_server.core.word_mac import mac_set_page_layout
-        # Mac JXA page setup values are in points; the tool contract is inches.
-        def _pts(inches):
-            return None if inches is None else inches * _PTS_PER_INCH
+        # Mac JXA page setup values are in points
+        top_pts, _ = _parse_live_unit_pts(margin_top, margin_unit, margin_top_inches)
+        bot_pts, _ = _parse_live_unit_pts(margin_bottom, margin_unit, margin_bottom_inches)
+        left_pts, _ = _parse_live_unit_pts(margin_left, margin_unit, margin_left_inches)
+        right_pts, _ = _parse_live_unit_pts(margin_right, margin_unit, margin_right_inches)
+        w_pts, _ = _parse_live_unit_pts(page_width, margin_unit, page_width_inches)
+        h_pts, _ = _parse_live_unit_pts(page_height, margin_unit, page_height_inches)
 
         return mac_set_page_layout(
             filename=filename, section_index=section_index, orientation=orientation,
-            page_width=_pts(page_width_inches), page_height=_pts(page_height_inches),
-            top_margin=_pts(margin_top_inches), bottom_margin=_pts(margin_bottom_inches),
-            left_margin=_pts(margin_left_inches), right_margin=_pts(margin_right_inches),
+            page_width=w_pts, page_height=h_pts,
+            top_margin=top_pts, bottom_margin=bot_pts,
+            left_margin=left_pts, right_margin=right_pts,
         )
 
     if sys.platform != "win32":
@@ -84,24 +121,35 @@ async def word_live_set_page_layout(
                     ps.Orientation = 0
                     changes.append("orientation=portrait")
 
-            if page_width_inches is not None:
-                ps.PageWidth = page_width_inches * _PTS_PER_INCH
-                changes.append(f"width={page_width_inches}in")
-            if page_height_inches is not None:
-                ps.PageHeight = page_height_inches * _PTS_PER_INCH
-                changes.append(f"height={page_height_inches}in")
-            if margin_top_inches is not None:
-                ps.TopMargin = margin_top_inches * _PTS_PER_INCH
-                changes.append(f"margin_top={margin_top_inches}in")
-            if margin_bottom_inches is not None:
-                ps.BottomMargin = margin_bottom_inches * _PTS_PER_INCH
-                changes.append(f"margin_bottom={margin_bottom_inches}in")
-            if margin_left_inches is not None:
-                ps.LeftMargin = margin_left_inches * _PTS_PER_INCH
-                changes.append(f"margin_left={margin_left_inches}in")
-            if margin_right_inches is not None:
-                ps.RightMargin = margin_right_inches * _PTS_PER_INCH
-                changes.append(f"margin_right={margin_right_inches}in")
+            pw, pw_desc = _parse_live_unit_pts(page_width, margin_unit, page_width_inches)
+            if pw is not None:
+                ps.PageWidth = pw
+                changes.append(f"width={pw_desc}")
+
+            ph, ph_desc = _parse_live_unit_pts(page_height, margin_unit, page_height_inches)
+            if ph is not None:
+                ps.PageHeight = ph
+                changes.append(f"height={ph_desc}")
+
+            mt, mt_desc = _parse_live_unit_pts(margin_top, margin_unit, margin_top_inches)
+            if mt is not None:
+                ps.TopMargin = mt
+                changes.append(f"margin_top={mt_desc}")
+
+            mb, mb_desc = _parse_live_unit_pts(margin_bottom, margin_unit, margin_bottom_inches)
+            if mb is not None:
+                ps.BottomMargin = mb
+                changes.append(f"margin_bottom={mb_desc}")
+
+            ml, ml_desc = _parse_live_unit_pts(margin_left, margin_unit, margin_left_inches)
+            if ml is not None:
+                ps.LeftMargin = ml
+                changes.append(f"margin_left={ml_desc}")
+
+            mr, mr_desc = _parse_live_unit_pts(margin_right, margin_unit, margin_right_inches)
+            if mr is not None:
+                ps.RightMargin = mr
+                changes.append(f"margin_right={mr_desc}")
 
         return json.dumps({
             "success": True,
